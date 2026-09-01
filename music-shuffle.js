@@ -4,6 +4,7 @@ const nextButton = document.getElementById("next");
 const shuffleButton = document.getElementById("shuffle");
 const stopButton = document.getElementById("stop");
 const player = document.getElementById("player");
+player.volume = 0.15;
 const track = document.getElementById("track");
 
 let songs = [];
