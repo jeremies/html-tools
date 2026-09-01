@@ -77,7 +77,7 @@
         const $ = (sel) => document.querySelector(sel);
 
         setInterval(() => {
-          if (window.qescape) return;
+          if (!window.qON) return;
 
           const media = $("audio, video");
           if (!media) return;
@@ -91,12 +91,12 @@
         }, 60 * 1000);
 
         // Remove previous instance if it exists
-        document.getElementById("qescape-toggle")?.remove();
+        document.getElementById("qON-toggle")?.remove();
 
-        window.qescape = !!window.qescape;
+        window.qON = window.qON ?? true;
 
         const panel = document.createElement("div");
-        panel.id = "qescape-toggle";
+        panel.id = "qON-toggle";
         panel.style.cssText = `
           position: fixed;
           top: 20px;
@@ -116,7 +116,7 @@
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.checked = window.qescape;
+        checkbox.checked = window.qON;
         checkbox.style.cssText = `
           width: 32px;
           height: 32px;
@@ -126,8 +126,8 @@
         const label = document.createElement("span");
 
         function update() {
-          window.qescape = checkbox.checked;
-          label.textContent = `qescape: ${window.qescape}`;
+          window.qON = checkbox.checked;
+          label.textContent = "RANDOM-PAUSE";
         }
 
         checkbox.addEventListener("change", update);
