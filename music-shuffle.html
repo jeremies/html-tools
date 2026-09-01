@@ -27,6 +27,11 @@
         background: #4caf50;
         color: white;
       }
+      #prev,
+      #next {
+        background: #2196f3;
+        color: white;
+      }
       #shuffle {
         background: #ff9800;
         color: white;
@@ -34,6 +39,11 @@
       #stop {
         background: #e53935;
         color: white;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       audio {
@@ -53,6 +63,8 @@
     <h1>🎵 Random Music Player</h1>
 
     <button id="pick">Choose Music Folder</button>
+    <button id="prev" disabled>⏮ Prev</button>
+    <button id="next" disabled>⏭ Next</button>
     <button id="shuffle" disabled>🔀 Shuffle</button>
     <button id="stop" disabled>⏹ Stop</button>
 
