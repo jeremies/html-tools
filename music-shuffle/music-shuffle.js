@@ -1,4 +1,5 @@
 const pickButton = document.getElementById("pick");
+const folderInput = document.getElementById("folderInput");
 const prevButton = document.getElementById("prev");
 const nextButton = document.getElementById("next");
 const shuffleButton = document.getElementById("shuffle");
@@ -18,38 +19,29 @@ function setPlaybackButtonsDisabled(disabled) {
   stopButton.disabled = disabled;
 }
 
-pickButton.addEventListener("click", async () => {
-  try {
-    const handle = await window.showDirectoryPicker();
-    songs = [];
-    async function scan(directory) {
-      for await (const entry of directory.values()) {
-        if (entry.kind === "file") {
-          const file = await entry.getFile();
-          if (
-            file.type.startsWith("audio/") ||
-            /\.(mp3|m4a|aac|flac|ogg|opus|wav|wma)$/i.test(file.name)
-          ) {
-            songs.push(file);
-          }
-        } else if (entry.kind === "directory") {
-          await scan(entry);
-        }
-      }
-    }
-    await scan(handle);
-    if (!songs.length) {
-      track.textContent = "No music files found.";
-      setPlaybackButtonsDisabled(true);
-      return;
-    }
-    track.textContent = `${songs.length} tracks found.`;
-    setPlaybackButtonsDisabled(false);
-    createShuffleQueue();
-    playTrack(0);
-  } catch (err) {
-    // User cancelled the folder picker.
+pickButton.addEventListener("click", () => {
+  folderInput.click();
+});
+
+folderInput.addEventListener("change", (e) => {
+  const files = e.target.files;
+  if (!files || !files.length) return;
+
+  songs = Array.from(files).filter(
+    (file) =>
+      file.type.startsWith("audio/") ||
+      /\.(mp3|m4a|aac|flac|ogg|opus|wav|wma)$/i.test(file.name)
+  );
+
+  if (!songs.length) {
+    track.textContent = "No music files found.";
+    setPlaybackButtonsDisabled(true);
+    return;
   }
+  track.textContent = `${songs.length} tracks found.`;
+  setPlaybackButtonsDisabled(false);
+  createShuffleQueue();
+  playTrack(0);
 });
 
 function createShuffleQueue() {
