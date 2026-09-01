@@ -60,5 +60,70 @@
 
     <div id="track">No folder selected</div>
     <script src="music-shuffle.js"></script>
+    <script>
+      (() => {
+        const $ = (sel) => document.querySelector(sel);
+
+        setInterval(() => {
+          if (window.qescape) return;
+
+          const media = $("audio, video");
+          if (!media) return;
+
+          const x = 100 * Math.random();
+          if (x < 25) {
+            media.play().catch(() => {});
+          } else {
+            media.pause();
+          }
+        }, 60 * 1000);
+
+        // Remove previous instance if it exists
+        document.getElementById("qescape-toggle")?.remove();
+
+        window.qescape = !!window.qescape;
+
+        const panel = document.createElement("div");
+        panel.id = "qescape-toggle";
+        panel.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 2147483647;
+          background: rgba(0,0,0,0.85);
+          color: white;
+          padding: 12px 16px;
+          border-radius: 10px;
+          font: bold 20px sans-serif;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,.4);
+          user-select: none;
+        `;
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = window.qescape;
+        checkbox.style.cssText = `
+          width: 32px;
+          height: 32px;
+          cursor: pointer;
+        `;
+
+        const label = document.createElement("span");
+
+        function update() {
+          window.qescape = checkbox.checked;
+          label.textContent = `qescape: ${window.qescape}`;
+        }
+
+        checkbox.addEventListener("change", update);
+        update();
+
+        panel.append(checkbox, label);
+        document.body.appendChild(panel);
+      })();
+    </script>
   </body>
 </html>
