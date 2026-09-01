@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Random Music Player</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 700px;
+        margin: 60px auto;
+        padding: 20px;
+        background: #111;
+        color: #eee;
+        text-align: center;
+      }
+      button {
+        font-size: 16px;
+        padding: 12px 20px;
+        margin: 8px;
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      #pick {
+        background: #4caf50;
+        color: white;
+      }
+      #shuffle {
+        background: #ff9800;
+        color: white;
+      }
+      #stop {
+        background: #e53935;
+        color: white;
+      }
+
+      audio {
+        width: 100%;
+        margin: 25px 0;
+      }
+
+      #track {
+        margin: 20px 0;
+        min-height: 24px;
+        color: #aaa;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎵 Random Music Player</h1>
+
+    <button id="pick">Choose Music Folder</button>
+    <button id="shuffle" disabled>🔀 Shuffle</button>
+    <button id="stop" disabled>⏹ Stop</button>
+
+    <audio id="player" controls></audio>
+
+    <div id="track">No folder selected</div>
+    <script>
+      const pickButton = document.getElementById("pick"); const shuffleButton = document.getElementById("shuffle"); const stopButton = document.getElementById("stop"); const player = document.getElementById("player"); const track = document.getElementById("track"); let songs = []; let queue = []; let index = 0; pickButton.addEventListener("click", async () => { try { const handle = await window.showDirectoryPicker(); songs = []; async function scan(directory) { for await (const entry of directory.values()) { if (entry.kind === "file") { const file = await entry.getFile(); if (file.type.startsWith("audio/") || /\.(mp3|m4a|aac|flac|ogg|opus|wav|wma)$/i.test(file.name)) { songs.push(file); } } else if (entry.kind === "directory") { await scan(entry); } } } await scan(handle); if (!songs.length) { track.textContent = "No music files found."; shuffleButton.disabled = true; stopButton.disabled = true; return; } track.textContent = `${songs.length} tracks found.`; shuffleButton.disabled = false; stopButton.disabled = false; createShuffleQueue(); playNext(); } catch (err) { // User cancelled the folder picker. } }); function createShuffleQueue() { queue = [...songs]; // Fisher-Yates shuffle for (let i = queue.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; } index = 0; } function playNext() { if (index >= queue.length) { createShuffleQueue(); } const file = queue[index++]; const url = URL.createObjectURL(file); player.src = url; player.play().catch(() => {}); track.textContent = `🎵 ${file.name}`; } player.addEventListener("ended", playNext); shuffleButton.addEventListener("click", () => { if (!songs.length) return; createShuffleQueue(); playNext(); }); stopButton.addEventListener("click", () => { player.pause(); player.currentTime = 0; track.textContent = "Stopped"; });
+    </script>
+  </body>
+</html>
