@@ -80,6 +80,7 @@
 
         let isFading = false; // false | 'in' | 'out'
         let fadeAnimId = null;
+        let activeFadeResolve = null;
         let programmaticStateChange = false;
 
         const media = $("audio, video");
@@ -87,6 +88,10 @@
         let lastSetVolume = baseVolume;
 
         function cancelFade() {
+          if (activeFadeResolve) {
+            activeFadeResolve(false);
+            activeFadeResolve = null;
+          }
           if (!isFading) return;
           if (fadeAnimId) {
             cancelAnimationFrame(fadeAnimId);
@@ -107,6 +112,10 @@
           if (fadeAnimId) {
             cancelAnimationFrame(fadeAnimId);
             fadeAnimId = null;
+          }
+          if (activeFadeResolve) {
+            activeFadeResolve(false);
+            activeFadeResolve = null;
           }
 
           isFading = "out";
@@ -137,14 +146,18 @@
           fadeAnimId = requestAnimationFrame(step);
         }
 
-        function fadeInAndPlay() {
-          if (!media || (!media.src && !media.currentSrc)) return;
-          if (!media.paused && isFading !== "out") return;
-          if (isFading === "in") return;
+        async function playAndFadeIn() {
+          if (!media || (!media.src && !media.currentSrc)) return false;
+          if (!media.paused && isFading !== "out") return false;
+          if (isFading === "in") return false;
 
           if (fadeAnimId) {
             cancelAnimationFrame(fadeAnimId);
             fadeAnimId = null;
+          }
+          if (activeFadeResolve) {
+            activeFadeResolve(false);
+            activeFadeResolve = null;
           }
 
           const targetVol = baseVolume > 0 ? baseVolume : 0.15;
@@ -156,36 +169,49 @@
 
           if (media.paused) {
             programmaticStateChange = true;
-            const playPromise = media.play();
+            try {
+              await media.play();
+            } catch {
+              programmaticStateChange = false;
+              cancelFade();
+              return false;
+            }
             programmaticStateChange = false;
-            if (playPromise) {
-              playPromise.catch(() => {
-                cancelFade();
-              });
-            }
           }
 
-          const startTime = performance.now();
-
-          function step(now) {
-            if (isFading !== "in") return;
-            const elapsed = now - startTime;
-            const t = Math.min(1, elapsed / FADE_DURATION);
-            const factor = (1 - Math.cos(Math.PI * t)) / 2; // 0 up to 1 cosine ease
-            const newVol = Math.max(0, Math.min(1, startVol + (targetVol - startVol) * factor));
-            lastSetVolume = newVol;
-            media.volume = newVol;
-
-            if (t < 1) {
-              fadeAnimId = requestAnimationFrame(step);
-            } else {
-              media.volume = targetVol;
-              lastSetVolume = targetVol;
-              isFading = false;
-              fadeAnimId = null;
-            }
+          if (isFading !== "in") {
+            return false;
           }
-          fadeAnimId = requestAnimationFrame(step);
+
+          return new Promise((resolve) => {
+            activeFadeResolve = resolve;
+            const startTime = performance.now();
+
+            function step(now) {
+              if (isFading !== "in") {
+                resolve(false);
+                return;
+              }
+              const elapsed = now - startTime;
+              const t = Math.min(1, elapsed / FADE_DURATION);
+              const factor = (1 - Math.cos(Math.PI * t)) / 2; // 0 up to 1 cosine ease
+              const newVol = Math.max(0, Math.min(1, startVol + (targetVol - startVol) * factor));
+              lastSetVolume = newVol;
+              media.volume = newVol;
+
+              if (t < 1) {
+                fadeAnimId = requestAnimationFrame(step);
+              } else {
+                media.volume = targetVol;
+                lastSetVolume = targetVol;
+                isFading = false;
+                fadeAnimId = null;
+                activeFadeResolve = null;
+                resolve(true);
+              }
+            }
+            fadeAnimId = requestAnimationFrame(step);
+          });
         }
 
         if (media) {
@@ -224,7 +250,7 @@
 
           const x = 100 * Math.random();
           if (x < 25) {
-            fadeInAndPlay();
+            playAndFadeIn();
           } else {
             fadeOutAndPause();
           }
