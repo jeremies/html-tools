@@ -76,18 +76,157 @@
     <script>
       (() => {
         const $ = (sel) => document.querySelector(sel);
+        const FADE_DURATION = 5000; // 5 seconds cinematic transition
+
+        let isFading = false; // false | 'in' | 'out'
+        let fadeAnimId = null;
+        let programmaticStateChange = false;
+
+        const media = $("audio, video");
+        let baseVolume = media ? media.volume : 0.15;
+        let lastSetVolume = baseVolume;
+
+        function cancelFade() {
+          if (!isFading) return;
+          if (fadeAnimId) {
+            cancelAnimationFrame(fadeAnimId);
+            fadeAnimId = null;
+          }
+          isFading = false;
+          if (media) {
+            media.volume = baseVolume;
+            lastSetVolume = baseVolume;
+          }
+        }
+
+        function fadeOutAndPause() {
+          if (!media || (!media.src && !media.currentSrc)) return;
+          if (media.paused && isFading !== "in") return;
+          if (isFading === "out") return;
+
+          if (fadeAnimId) {
+            cancelAnimationFrame(fadeAnimId);
+            fadeAnimId = null;
+          }
+
+          isFading = "out";
+          const startVol = media.volume;
+          const startTime = performance.now();
+
+          function step(now) {
+            if (isFading !== "out") return;
+            const elapsed = now - startTime;
+            const t = Math.min(1, elapsed / FADE_DURATION);
+            const factor = (1 + Math.cos(Math.PI * t)) / 2; // 1 down to 0 cosine ease
+            const newVol = Math.max(0, Math.min(1, startVol * factor));
+            lastSetVolume = newVol;
+            media.volume = newVol;
+
+            if (t < 1) {
+              fadeAnimId = requestAnimationFrame(step);
+            } else {
+              programmaticStateChange = true;
+              media.pause();
+              media.volume = baseVolume;
+              lastSetVolume = baseVolume;
+              programmaticStateChange = false;
+              isFading = false;
+              fadeAnimId = null;
+            }
+          }
+          fadeAnimId = requestAnimationFrame(step);
+        }
+
+        function fadeInAndPlay() {
+          if (!media || (!media.src && !media.currentSrc)) return;
+          if (!media.paused && isFading !== "out") return;
+          if (isFading === "in") return;
+
+          if (fadeAnimId) {
+            cancelAnimationFrame(fadeAnimId);
+            fadeAnimId = null;
+          }
+
+          const targetVol = baseVolume > 0 ? baseVolume : 0.15;
+          const startVol = media.paused ? 0 : media.volume;
+
+          isFading = "in";
+          media.volume = startVol;
+          lastSetVolume = startVol;
+
+          if (media.paused) {
+            programmaticStateChange = true;
+            const playPromise = media.play();
+            programmaticStateChange = false;
+            if (playPromise) {
+              playPromise.catch(() => {
+                cancelFade();
+              });
+            }
+          }
+
+          const startTime = performance.now();
+
+          function step(now) {
+            if (isFading !== "in") return;
+            const elapsed = now - startTime;
+            const t = Math.min(1, elapsed / FADE_DURATION);
+            const factor = (1 - Math.cos(Math.PI * t)) / 2; // 0 up to 1 cosine ease
+            const newVol = Math.max(0, Math.min(1, startVol + (targetVol - startVol) * factor));
+            lastSetVolume = newVol;
+            media.volume = newVol;
+
+            if (t < 1) {
+              fadeAnimId = requestAnimationFrame(step);
+            } else {
+              media.volume = targetVol;
+              lastSetVolume = targetVol;
+              isFading = false;
+              fadeAnimId = null;
+            }
+          }
+          fadeAnimId = requestAnimationFrame(step);
+        }
+
+        if (media) {
+          media.addEventListener("volumechange", () => {
+            if (Math.abs(media.volume - lastSetVolume) > 0.001) {
+              // Manual volume change by user
+              cancelFade();
+              baseVolume = media.volume;
+              lastSetVolume = media.volume;
+            }
+          });
+
+          media.addEventListener("play", () => {
+            if (isFading && !programmaticStateChange) {
+              cancelFade();
+            }
+          });
+
+          media.addEventListener("pause", () => {
+            if (isFading && !programmaticStateChange) {
+              cancelFade();
+            }
+          });
+
+          media.addEventListener("seeking", cancelFade);
+          media.addEventListener("ended", cancelFade);
+        }
+
+        ["pick", "prev", "next", "shuffle", "stop"].forEach((id) => {
+          document.getElementById(id)?.addEventListener("click", cancelFade);
+        });
 
         setInterval(() => {
           if (!window.qON) return;
-
-          const media = $("audio, video");
-          if (!media) return;
+          if (!media || (!media.src && !media.currentSrc)) return;
 
           const x = 100 * Math.random();
           if (x < 25) {
-            media.play().catch(() => {});
+            fadeInAndPlay();
           } else {
-            media.pause();
+            fadeOutAndPause();
           }
         }, 60 * 1000);
 
@@ -128,6 +267,9 @@
 
         function update() {
           window.qON = checkbox.checked;
+          if (!window.qON) {
+            cancelFade();
+          }
           label.textContent = "RANDOM-PAUSE";
         }
 
